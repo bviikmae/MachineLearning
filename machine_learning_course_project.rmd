@@ -1,0 +1,93 @@
+---
+title: "Regression Models Course Project"
+author: "Bert Viikmäe"
+date: "11 Jun 2018"
+output:
+  html_document: default
+---
+
+## Overview
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement ??? a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here (see the section on the Weight Lifting Exercise Dataset).
+    
+## Data
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+## Objective
+The goal is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+## Initialise the data
+```{r, echo=TRUE}
+install.packages("lattice")
+install.packages("ggplot2")
+install.packages('caret', dependencies = TRUE)
+install.packages("randomForest"); 
+install.packages("rpart"); 
+install.packages("rpart.plot");
+
+library(lattice); 
+library(ggplot2); 
+library(caret); 
+library(randomForest); 
+library(rpart); 
+library(rpart.plot);
+
+if (!file.exists("train_data.csv")){
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",   
+                destfile="train_data.csv", method="curl")
+}
+
+if (!file.exists("test_data.csv")){
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+              destfile="test_data.csv", method="curl")
+}
+
+train_data <- read.csv("train_data.csv", na.strings=c("NA","#DIV/0!", ""))
+test_data <- read.csv("test_data.csv", na.strings=c("NA","#DIV/0!", ""))
+```
+
+## Process the data
+```{r, echo=TRUE}
+set.seed(12345)
+train_data <- train_data[,colSums(is.na(train_data)) == 0]
+test_data  <- test_data[,colSums(is.na(test_data)) == 0]
+train_data <- train_data[,-c(1:7)]
+test_data  <- test_data[,-c(1:7)]
+
+traintrainset   <- createDataPartition(y=train_data$classe, p=0.75, list=FALSE)
+Traintrain_data <- train_data[traintrainset, ] 
+Testtrain_data  <- train_data[-traintrainset, ]
+
+plot(Traintrain_data$classe, col="green", xlab="classe", ylab="Frequency")
+```
+Figure 1. Levels of variable "Classe" in train data,
+
+## Decision Tree prediction model
+```{r, echo=TRUE}
+decision_model <- rpart(classe ~ ., data=Traintrain_data, method="class")
+decision_prediction <- predict(decision_model, Testtrain_data, type = "class")
+rpart.plot(decision_model, main="Classification Tree", extra=102, under=TRUE, faclen=0)
+confusionMatrix(decision_prediction, Testtrain_data$classe)
+```
+
+## Random Forest prediction model
+```{r, echo=TRUE}
+forest_model <- randomForest(classe ~. , data=Traintrain_data, method="class")
+forest_prediction <- predict(forest_model, Testtrain_data, type = "class")
+confusionMatrix(forest_prediction, Testtrain_data$classe)
+```
+
+## Model performance evaluation
+Random Forest model was more accurate than Decision Tree model (0.99 vs 0.74). The expected out of sample error is estimated 0.5%.
+
+## Final outcome of Random Forest model
+```{r, echo=TRUE}
+predictfinal <- predict(forest_model, test_data, type="class")
+predictfinal
+```
